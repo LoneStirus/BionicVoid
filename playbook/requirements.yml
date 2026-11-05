@@ -1,0 +1,15 @@
+---
+# +==============================================================================+
+# Coleções (conjunto de módulos) que o playbook usa
+# Instalar com:
+# `ansible-galaxy collection install -r requirements.yml -p collections`
+# no ambiente live
+# +==============================================================================+
+collections:
+  # xbps (pacotes do void), chroot (conexão), btrfs_subvolume, runit
+  - name: community.general
+    version: ">=10.2.0"
+  # Mount com `state: ephemeral`
+  - name: ansible.posix
+    version: ">=1.5.0"
+...

@@ -1,0 +1,5 @@
+---
+# Placeholder — este role será escrito nas próximas etapas.
+- name: Role {{ role_name }} ainda não implementado
+  ansible.builtin.debug:
+    msg: "Estrutura criada na Etapa 1; ainda sem tasks reais."

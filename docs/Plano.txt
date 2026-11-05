@@ -1,0 +1,20 @@
+- PLANO DE TRABALHO:
+
+1. Ansible (A Base Sólida):
+e.x¹ -> O playbook do Ansible vai instalar apenas o "metal":
++ O Kernel Linux do Void;
++ Firmwares AMD;
++ PipeWire (Áudio);
++ O Podman e o Nix;
+A ideia é o Void se torna apenas um motor de hardware imutável.
+
+2. Nix (A interface e o Entretenimento):
+e.x¹ -> Aqui se instala todas os programas, de baixo e alto nível:
++ Niri;
++ Fuzzel ou Rofi;
++ Steam;
+
+3. Podman + Distrobox (Ambiente de Trabalho):
+e.x¹ -> A pasta de projetos fica na 'home'. Quando precisar programar em Python, Node.js ou C++, só abrir o terminal, entrar no container do Distrobox correspondente e trabalhar.
+
+Vá executando cada etapa com calma: primeiro a automação da base sólida no Void com o Ansible, depois a subida do ambiente gráfico limpo com o Nix e, por fim, os containers. Com certeza o resultado final vai ser um sistema extremamente rápido, previsível e gratificante de usar.
