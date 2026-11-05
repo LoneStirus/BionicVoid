@@ -1,0 +1,72 @@
+---
+# +==============================================================================+
+# site.yml - Instalação do Void Linux (Fase 1 do plano: "O metal")
+#
+# COME LER ISTO (Ansible em 30s):
+#   - Playbook      = este arquivo: uma LISTA DE PLAYS
+#   - Play          = "onde" (hosts) + "como" (vars) + "o quê" (roles)
+#   - Role          = a pasta em roles/ com as tasks (as ações, uma a uma)
+#   - Task          = uma ação idempotente: ele confere o estado antes de agir,
+#                     então rodar duas vezes dá o mesmo resultado
+#   - Variável      = os valores de group_vars/ (é lá que se configura tudo)
+#
+# OS TRÊS PILARES (a ordem importa):
+#   1) live_host    -> prepara o disco e instala os pacotes em /mnt
+#   2) chroot_host  -> configura o sistema instalado (arquivos, usuários, GRUB)
+#   3) live_host    -> desmonta tudo (só depois do chroot terminar)
+#
+# EXECUTANDO POR PARTES (tags = etiquetas aplicadas às tasks):
+#   `ansible-playbook site.yml --list-tags`       # ver as etiquetas
+#   `ansible-playbook site.yml --tags storage`    # só a fase do disco
+#   `ansible-playbook site.yml --skip-tags post`  # instala sem a camada desktop
+# +==============================================================================+
+
+- name: "1/3 - Disco e bootstrap (sessão Live do Void)"
+  hosts: live_host # grupo do inventory.yml = o próprio pendrive
+  gather_facts: true # coleta dados da máquina (lsblk, distro, etc.)
+  roles:
+    - role: preflight # checagens de sanidade (é Void? é root?)
+      tags: [always] # "always" = roda mesmo filtrando por outra tag
+    - role: storage
+      tags: [storage] # fase IRREVERSÍVEL: particiona e formata
+    - role: meta_repo
+      tags: [meta-repo] # constrói os meta-pacotes (`base-essential`, etc.)
+    - role: bootstrap
+      tags: [bootstrap] # instala o sistema em /mnt e prepara o chroot
+    #eol
+  #eol
+#eol
+- name: "2/3 - Configuração do sistema instalado (chroot em /mnt)"
+  hosts: chroot_host # tudo aqui roda DENTRO do /mnt (listado em inventory.yml)
+  gather_facts: true
+  vars_prompt: # pergunta as senhas uma vez, sem gravar nada
+    - name: void_root_password
+      prompt: "Senha para o usuário root..."
+      private: true # não mostra o que você digita
+      confirm: true # pede de novo, para evitar erro de digitação
+    - name: void_user_password
+      prompt: "Senha para o usuário comum..."
+      private: true
+      confirm: true
+  roles:
+    - role: chroot_base
+      tags: [chroot-base] # hostname, fuso, locale, usuários, doas
+    - role: chroot_services
+      tags: [chroot-services] # serviços do runit e do PipeWire (symlinks)
+    - role: post_install
+      tags: [post] # camada desktop + containers + Nix
+    - role: bootloader
+      tags: [bootloader] # initramfs e GRUB (a ordem aqui é de propósito)
+    #eol
+  #eol
+#eol
+- name: "3/3 - Desmontagem (sessão Live do Void)"
+  hosts: live_host
+  gather_facts: false # desnecessário: só desmonta pastas
+  roles:
+    - role: cleanup
+      tags: [cleanup]
+    #eol
+  #eol
+#eol
+...
