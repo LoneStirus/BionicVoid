@@ -1,0 +1,11 @@
+# +==============================================================================+
+# group_vars/chroot_host.yml - variáveis do play que roda DENTRO do alvo
+#
+#
+#
+# Aqui o / já é o sistema instalado: os caminhos são normais
+# (/etc/hostname, /boot/efi...), por isso void_target_root fica VAZIO
+# Os roles usam sempre {{ void_target_root }}/etc/hostname - assim a MESMA task
+# funciona nos dois mundos, sem duplicar código
+# +==============================================================================+
+void_target_root: ""

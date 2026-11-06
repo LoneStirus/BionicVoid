@@ -1,0 +1,48 @@
+---
+# +==============================================================================+
+# group_vars/live_host.yml - variáveis só da sessão Live (host de controle)
+# É AQUI que ficam as travas da fase destrutiva. Deixadas vazias de propósito
+# O playbook se recusa a rodar até que seja preenchido
+#
+#
+#
+# O disco que será TOTALMENTE APAGADO (ex.: /dev/nvme0n1, /dev/sda, /dev/vda)
+# +==============================================================================+
+void_disk: "" # NÃO MEXA, DEVE SER VAZIO para o prompt funcionar
+
+# +==============================================================================+
+# Trava nº2: precisa ser exatamente esta frase, com o disco no final
+# +==============================================================================+
+void_disk_confirm: "" # ex.: "SIM, APAGAR /dev/nvme0n1"
+
+# +==============================================================================+
+# Pin de hardware (opcional, recomendado na máquina real)
+# +==============================================================================+
+void_disk_expect_model: "KINGSTON SFYRS1000G" # ex.: "Samsung SSD 990" (ver: `lsblk -dno MODEL`)
+void_disk_expect_min_gb: 0 # ex.: 900 (0 = não checar)
+
+# +==============================================================================+
+# Tamanhos: ESP de 2G e raiz ocupando o resto do disco ou 920GB
+# ("0" no sgdisk = último setor disponível)
+# +==============================================================================+
+void_esp_size: "+2G"
+void_root_size: "+920G"
+
+# +==============================================================================+
+# Labels gravados no `mkfs` (a ESP é reconhecida pelo firmware; o VSP é o BTRFS)
+# +==============================================================================+
+void_esp_label: ESP
+void_btrfs_label: VSP
+
+# +==============================================================================+
+# Onde é montado enquanto instalamos
+# +==============================================================================+
+void_target_root: /mnt
+
+# +==============================================================================+
+# Operações opcionais - só ligue com consciência
+# +==============================================================================+
+void_discard: true # `blkdiscard -fv` (em VM com qcow2 costuma falhar)
+void_nvme_format: false # `nvme format`: destrutivo; rode `nvme id-ns -H` antes
+void_storage_force_repair: false # permite refazer partição/formatação após falha
+...

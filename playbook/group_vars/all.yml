@@ -1,0 +1,215 @@
+# +==============================================================================+
+# group_vars/all.yml - variáveis compartilhadas pelos dois hosts
+# (live_host e chroot_host), nada de segredo
+# Convenção: prefixo void_ para não colidir com variáveis internas do Ansible
+# (ansible_*) e ficar trivial de achar com grep
+#
+#
+#
+# Identidade do sistema
+# +==============================================================================+
+void_hostname: bionicvoid
+void_timezone: America/Sao_Paulo
+void_locale: pt_BR.UTF-8 # usado no /etc/locale.conf e no libc-locales
+void_keymap: br-abnt2 # teclado do console (o doc diz "conforme prefs")
+void_maintainer: "LoneStirus <work@maiadigital.com.br>" # usado pelo `xbps-create`
+
+# +==============================================================================+
+# Usuário comum
+# +==============================================================================+
+void_user:
+  name: stirus
+  comment: Stirus
+  shell: /bin/fish
+  groups: [wheel, audio, video, input, storage, _seatd]
+#eol
+
+# +==============================================================================+
+# Repositórios
+# +==============================================================================+
+void_repo_main: https://repo-fastly.voidlinux.org/current
+# Repo dos meta-pacotes: construido na sessão Live e depois COPIADO para dentro
+# do alvo - o /root do Live é RAM e desaparece no reboot
+void_local_repo_path: /root/void-meta/repo
+void_local_repo_target_dir: /opt/void-meta/repo
+
+# +==============================================================================+
+# Meta-pacotes (`xbps-create`)
+# +==============================================================================+
+void_meta_packages:
+  - name: base-essential
+    version: "1.0.0"
+    release: "1"
+    short: "BionicVoid System."
+    deps:
+      # Utilitários e estruturas de baixo nível + espinha dorsal
+      - acpid>=0
+      - base-files>=0.77
+      - bash>=0
+      - dash>=0
+      - dbus>=0
+      - glibc-locales>=0
+      - iana-etc>=0
+      - iproute2>=0
+      - iputils>=0
+      - kbd>=0
+      - libgcc>=0
+      - removed-packages>=0
+      - tzdata>=0
+      - xbps>=0
+      # Drivers de disco e sistema de arquivos
+      - coreutils>=0
+      - diffutils>=0
+      - dosfstools>=0
+      - findutils>=0
+      - util-linux>=0
+      - zramen>=0
+      # Depuração de hardware
+      - pciutils>=0
+      - usbutils>=0
+      # Empacotadores críticos
+      - gzip>=0
+      - tar>=0
+      # Manipulação de arquivos
+      - file>=0
+      - gawk>=0
+      - grep>=0
+      - less>=0
+      - sed>=0
+      - which>=0
+      # Manipuladores de kernel
+      - eudev>=0
+      - kmod>=0
+      - ncurses>=0
+      - shadow>=0
+      # Gerenciamento de processos de baixo nível
+      - chrony>=0
+      - procps-ng>=0
+      - runit-void>=0
+      - socklog-void>=0
+      # Manuais
+      - man-pages>=0
+    #eol
+  #eol
+  - name: desktop-base
+    version: "1.0.0"
+    release: "1"
+    short: "BionicVoid Desktop."
+    deps:
+      # Drivers de vídeo - falta
+      - mesa-dri>=0
+      - mesa-vulkan-radeon>=0
+      - vulkan-loader>=0
+      - mesa-vaapi>=0
+      # Áudio - falta
+      - pipewire>=0
+      - wireplumber>=0
+      # Gerenciadores de pacotes
+      - nix>=0
+      # Containers
+      - fuse-overlayfs>=0
+      - podman>=0
+      - slirp4netns>=0
+      # Suíte de usuário - falta
+      - polkit>=0
+      - xdg-desktop-portal>=0
+      - xdg-utils>=0
+      - xdg-user-dirs>=0
+      # Fontes - falta
+      - noto-fonts-ttf>=0
+      - terminus-fonts>=0
+      # Terminais e shells
+      - foot>=0
+      - fish-shell>=0
+    #eol
+  #eol
+#eol
+
+# +==============================================================================+
+# Pacotes instalados além dos meta-pacotes
+# (kernel e firmware ficam fora do meta-pacote porque a versão muda com o tempo)
+# +==============================================================================+
+void_kernel_package: linux7.2
+void_kernel_headers_package: linux7.2-headers
+void_base_packages:
+  # Inicialização e carregadores de boot (firmware/kernel)
+  - btrfs-progs
+  - dracut
+  - efibootmgr
+  - grub-x86_64-efi
+  - linux-firmware-amd
+  # Gerenciamento de rede
+  - dhcpcd
+  - openresolv
+  - openssh
+  # Gerenciamento de sessão e permissões (acesso)
+  - opendoas
+  - seatd
+  - turnstile
+  # Ferramentas de usuário e administração (CLI)
+  - htop
+  - micro
+  - python3
+  - xtools
+#eol
+
+# +==============================================================================+
+# Serviços do sistema
+# Habilitar no runit = symlink de /etc/sv/<nome> para
+# /etc/runit/runsvdir/default/<nome> - Não existe `systemctl` no Void
+# +==============================================================================+
+void_runit_services:
+  - dhcpcd
+  - udevd
+  - dbus
+  - seatd
+  - turnstiled
+  - chronyd
+  - socklog-unix
+  - nanologd
+  - zramen
+  - acpid
+#eol
+
+# +==============================================================================+
+# Serviços por usuário (turnstile): vão para ~/.config/service e sobem no
+# login. É assim que o pipewire roda no Void - não como serviço de sistema
+# +==============================================================================+
+void_user_services:
+  - pipewire
+  - pipewire-pulse
+  - wireplumber
+#eol
+
+# +==============================================================================+
+# Disco - subvolumes BTRFS
+# Lista única que alimenta as montagens, o fstab e o `chattr +C` (nocow: true)
+# +==============================================================================+
+void_btrfs_subvolumes:
+  - {
+      name: "@",
+      path: "/",
+      opts: "subvol=@,noatime,compress=zstd:1",
+      nocow: false,
+    }
+  - {
+      name: "@home",
+      path: "/home",
+      opts: "subvol=@home,noatime,compress=zstd:1",
+      nocow: false,
+    }
+  - {
+      name: "@cache",
+      path: "/var/cache",
+      opts: "subvol=@cache,lazytime,compress=zstd:1",
+      nocow: true,
+    }
+  - {
+      name: "@log",
+      path: "/var/log",
+      opts: "subvol=@log,lazytime,compress=zstd:1",
+      nocow: true,
+    }
+  #eol
+#eol
+...
