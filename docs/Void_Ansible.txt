@@ -1,0 +1,221 @@
+- MONTAR META-PACOTE -
+
+$ mkdir -p ~/void-meta/repo ~/void-meta/payload
+
+$ cd
+
+$ cd void-meta/
+
+$ xbps-create -A x86_64 -n "base-essential-1.0.0_1" -s "..." -m "LoneStirus work@maiadigital.com.br" -D "base-files>=0.77 removed-packages>=0 dash>=0 bash>=0 xbps>=0 libgcc>=0 glibc-locales>=0 tzdata>=0 dbus>=0 acpid>=0  kbd>=0 iana-etc>=0 iputils>=0 iproute2>=0 coreutils>=0 findutils>=0 diffutils>=0 dosfstools>=0 pciutils>=0 usbutils>=0 tar>=0 gzip>=0 util-linux>=0 which>=0 file>=0 less>=0 gawk>=0 sed>=0 grep>=0 ncurses>=0 shadow>=0 kmod>=0 eudev>=0 procps-ng>=0 runit-void>=0 chrony>=0 socklog-void>=0 zramen>=0 man-pages>=0" payload/
+
+$ mv base-essential-1.0.0_1.x86_64.xbps repo/
+
+$ xbps-rindex -a repo/base-essential-1.0.0_1.x86_64.xbps
+
+# Pós instalação, para atualizar é só rodar isso:
+
+$ doas xbps-install -Syu --repository=repo/ base-essential
+
+# desktop niri:
+
+$ xbps-create -A x86_64 -n "desktop-niri-1.0.0_1" -s "..." -m "LoneStirus work@maiadigital.com.br" -D "niri>=0 pipewire>=0 wireplumber>=0 polkit>=0 xdg-desktop-portal>=0 xdg-utils>=0 noto-fonts-ttf>=0 foot>=0" payload/
+
+- LIMPEZA -
+
+$ nvme format /dev/nvme0n1 --namespace-id=1 --ses=1 --lbaf=1  (opcional, só se realmente for necessário se for 0 em: nvme id-ns -H /dev/nvme0n1 | grep -i "LBA Format")
+
+$ wipefs -a $DISK
+
+$ blkdiscard -fv $DISK
+
+- STORAGE -
+
+1. Particionamento:
+
+$ sgdisk -Z -o -n 1:2048:+2G -t 1:ef00 -c 1:"ESP" -n 2:0:+920G -t 2:8300 -c 2:"VSP" -p /dev/nvme0n1
+
+2. Formatação:
+
+$ mkfs.vfat -F 32 -n "ESP" /dev/nvme0n1p1
+
+$ mkfs.btrfs -f -L "VSP" /dev/nvme0n1p2
+
+- MONTAGEM -
+
+1. Subvolumes BTRFS:
+
+$ mount /dev/nvme0n1p2 /mnt
+
+$ btrfs subvolume create /mnt/@
+
+$ btrfs subvolume create /mnt/@home
+
+$ btrfs subvolume create /mnt/@cache
+
+$ btrfs subvolume create /mnt/@log
+
+$ umount /mnt
+
+2. Montagem:
+
+$ mount -o subvol=@,noatime,compress=zstd:1 /dev/nvme0n1p2 /mnt
+
+$ mkdir -p /mnt/{home,var/cache,var/log,boot/efi}
+
+$ mount -o subvol=@home,noatime,compress=zstd:1 /dev/nvme0n1p2 /mnt/home
+
+$ mount -o subvol=@cache,relatime,compress=zstd:1 /dev/nvme0n1p2 /mnt/var/cache
+
+$ mount -o subvol=@log,relatime,compress=zstd:1 /dev/nvme0n1p2 /mnt/var/log
+
+$ chattr +C /mnt/var/cache
+
+$ chattr +C /mnt/var/log
+
+$ mount /dev/nvme0n1p1 /mnt/boot/efi
+
+- BOOTSTRAP -
+
+1. Copia de chaves assinadas:
+
+$ mkdir -p /mnt/var/db/xbps/keys
+
+$ cp /var/db/xbps/keys/* /mnt/var/db/xbps/keys/
+
+2. Instalação:
+
+$ xbps-install -S -y -r /mnt -R https://repo-fastly.voidlinux.org/current -R /root/void-meta/repo base-essential linux7.2 linux7.2-headers dracut linux-firmware-amd opendoas openssh dhcpcd openresolv xtools grub-x86_64-efi efibootmgr micro seatd turnstile xdg-user-dirs fish-shell htop terminus-font flatpak
+
+# Isso dá aproximadamente 162 pacotes...
+
+3. fstab:
+
+$ xgenfstab -U /mnt > /mnt/etc/fstab
+
+- PRE CHROOT -
+
+1. Preparo:
+
+$ cp -L /etc/resolv.conf /mnt/etc/resolv.conf
+
+ou (sem xtools) 
+
+$ mountpoint -q /mnt/dev  || mount --rbind /dev  /mnt/dev
+$ mountpoint -q /mnt/proc || mount --rbind /proc /mnt/proc
+$ mountpoint -q /mnt/sys  || mount --rbind /sys  /mnt/sys
+
+$ chroot /mnt /bin/bash
+
+ou (com xtools)
+
+$ xchroot /mnt /bin/bash
+
+- CHROOT -
+
+1. Definir o hostname da máquina:
+
+$ echo 'ryzenbox' > /etc/hostname
+
+2. Definir configurações de rede:
+
+$ cat > /etc/hosts <<'EOF'
+# IPv4
+127.0.0.1        localhost
+127.0.1.1         ryzenbox.localdomain ryzenbox
+
+# IPv6
+::1                   localhost ip6-localhost ip6-loopback
+::1                   ryzenbox
+EOF
+
+3. rc.conf — KEYMAP e HARDWARECLOCK; TIMEZONE DEVE ficar comentado!:
+
+$ micro /etc/rc.conf (edite conforme prefs)
+
+4. Timezone:
+
+$ ln -sf /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime
+
+$ echo 'America/Sao_Paulo' > /etc/timezone
+
+5. Locale:
+
+$ cat > /etc/locale.conf <<'EOF'
+LANG=pt_BR.UTF-8
+LC_TIME=pt_BR.UTF-8
+LC_NUMERIC=pt_BR.UTF-8
+LC_MONETARY=pt_BR.UTF-8
+LC_PAPER=pt_BR.UTF-8
+LC_MEASUREMENT=pt_BR.UTF-8
+LC_COLLATE=C.UTF-8
+EOF
+
+$ micro /etc/default/libc-locales (descomenta o idioma legal ae)
+
+$ passwd root
+
+$ useradd -m -g users -G wheel,audio,video,input,storage,_seatd -s /bin/fish -c "Stirus" stirus
+
+$ passwd stirus
+
+6. Doas:
+
+$ printf 'permit persist :wheel\n' > /etc/doas.conf
+
+$ chown root:root /etc/doas.conf && chmod 640 /etc/doas.conf
+
+7. Serviços runit:
+
+$ ln -s /etc/sv/dhcpcd /etc/runit/runsvdir/default/dhcpcd
+$ ln -s /etc/sv/sshd /etc/runit/runsvdir/default/sshd
+$ ln -s /etc/sv/udevd /etc/runit/runsvdir/default/udevd
+$ ln -s /etc/sv/dbus /etc/runit/runsvdir/default/dbus
+$ ln -s /etc/sv/seatd /etc/runit/runsvdir/default/seatd
+$ ln -s /etc/sv/turnstiled /etc/runit/runsvdir/default/turnstiled
+$ ln -s /etc/sv/chronyd /etc/runit/runsvdir/default/chronyd
+$ ln -s /etc/sv/socklog-unix /etc/runit/runsvdir/default/socklog-unix
+$ ln -s /etc/sv/nanoklogd /etc/runit/runsvdir/default/nanoklogd
+$ ln -s /etc/sv/zramen /etc/runit/runsvdir/default/zramen
+$ ln -s /etc/sv/acpid /etc/runit/runsvdir/default/acpid
+
+- BOOTLOADER -
+
+1. Montar efivars:
+
+$ mountpoint -q /sys/firmware/efi/efivars || mount -t efivarfs none /sys/firmware/efi/efivars 2>/dev/null
+
+2. Instalar o grub:
+
+$ grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=Void --recheck
+
+$ grub-mkconfig -o /boot/grub/grub.cfg
+
+- FECHAMENTO -
+
+1. Final:
+
+$ xbps-reconfigure -fa
+$ exit
+$ umount -R /mnt
+
+- MVP PÓS INSTALAÇÃO -
+
+1. Gráficos:
+
+$ doas xi mesa-dri mesa-vulkan-radeon vulkan-loader mesa-vaapi
+
+- AUDITORIA -
+
+1. Verificar integridade dos pacotes instalados:
+
+$ doas xbps-pkgdb -a
+
+2. Verificar erros críticos do kernel durante inicialização:
+
+$ doas dmesg -l err,crit,alert,emerg
+
+- LEGAL -
+
+$ xbps-query -l | wc -l # Quantidade de pacotes instalados
+
+$ xbps-install -n -S sway | wc -l # Saber quantos pacotes vai ser instalado
